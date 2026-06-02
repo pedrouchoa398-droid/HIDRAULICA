@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Análise Hidráulica — NBR 13713/2009</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0f1e;
+      --surface:  #0f172a;
+      --card:     #111827;
+      --border:   #1e293b;
+      --border2:  #1e40af;
+      --text:     #e2e8f0;
+      --muted:    #94a3b8;
+      --dim:      #475569;
+      --faint:    #374151;
+      --blue:     #60a5fa;
+      --indigo:   #818cf8;
+      --green:    #10b981;
+      --red:      #ef4444;
+      --yellow:   #fbbf24;
+      --pink:     #f472b6;
+      --purple:   #a78bfa;
+      --sky:      #0ea5e9;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg);
+      min-height: 100vh;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      border-bottom: 1px solid var(--border2);
+      padding: 20px 24px;
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    #header .subtitle { font-size: 11px; letter-spacing: 4px; color: var(--blue); text-transform: uppercase; margin-bottom: 4px; }
+    #header h1 { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -1px; color: #f0f9ff; }
+    #header .desc { font-size: 12px; color: var(--dim); margin-top: 2px; }
+    #tab-bar { margin-left: auto; display: flex; gap: 8px; }
+    .tab-btn {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer;
+      font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+      background: transparent; color: var(--muted); transition: all .2s; font-family: inherit;
+    }
+    .tab-btn.active { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+
+    /* ── KPI STRIP ── */
+    #kpi-strip {
+      display: flex; gap: 0; border-bottom: 1px solid var(--border); overflow-x: auto;
+    }
+    .kpi {
+      flex: 1 0 100px; padding: 14px 20px; border-right: 1px solid var(--border); text-align: center;
+    }
+    .kpi-val { font-size: 20px; font-weight: 800; }
+    .kpi-lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+
+    /* ── FILTERS ── */
+    #filters {
+      display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; padding: 20px 20px 0;
+    }
+    #filters .lbl { font-size: 10px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; }
+    select {
+      background: #1e293b; border: 1px solid #334155; color: var(--text); border-radius: 6px;
+      padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: inherit;
+    }
+    #count-lbl { margin-left: auto; font-size: 11px; color: var(--dim); }
+
+    /* ── MAIN ── */
+    #main { padding: 4px 20px 20px; }
+
+    /* ── TABLE ── */
+    #table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead tr { background: var(--surface); border-bottom: 2px solid var(--border2); }
+    th {
+      padding: 10px 12px; text-align: left; color: var(--muted); font-weight: 600;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+    }
+    th.sortable { cursor: pointer; user-select: none; }
+    tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+    tbody tr:nth-child(odd)  { background: var(--card); }
+    tbody tr:nth-child(even) { background: var(--surface); }
+    tbody tr.selected { background: #1e3a5f !important; }
+    td { padding: 9px 12px; }
+
+    /* Badge */
+    .badge {
+      border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600;
+      border: 1px solid; font-family: monospace;
+    }
+    .badge-sim  { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+    .badge-nao  { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .badge-null { background: #f3f4f6; color: #9ca3af; border-color: #e5e7eb; }
+    .badge-danif { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+
+    /* Status pill */
+    .status-pill { border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 800; border: 1px solid; }
+
+    /* MiniBar */
+    .minibar-wrap { display: flex; align-items: center; gap: 6px; min-width: 120px; }
+    .minibar-track { flex: 1; background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden; }
+    .minibar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+    .minibar-val { font-size: 11px; color: #6b7280; min-width: 36px; text-align: right; }
+
+    /* ── OVERVIEW ── */
+    #overview-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px;
+    }
+    .card h3 {
+      font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; color: var(--blue);
+    }
+    .card h3.red { color: #f87171; }
+
+    /* Donut group */
+    .donuts { display: flex; justify-content: space-around; padding-top: 8px; }
+    .donut-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .donut-lbl { font-size: 10px; color: #6b7280; text-align: center; max-width: 60px; }
+
+    /* Tag pills */
+    .tag-pills { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag-pill { font-size: 11px; border: 1px solid; border-radius: 4px; padding: 3px 8px; }
+
+    /* Norma rows */
+    .norma-row {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;
+    }
+    .norma-row:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+    .norma-key { font-size: 12px; color: var(--muted); }
+    .norma-val { font-size: 13px; font-weight: 700; color: var(--text); }
+
+    /* Anomalies */
+    .anomaly-scroll { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+    .anomaly-item { background: #1f1010; border: 1px solid #7f1d1d; border-radius: 6px; padding: 8px 12px; }
+    .anomaly-title { font-size: 11px; font-weight: 700; color: #fca5a5; }
+    .anomaly-detail { font-size: 10px; color: var(--red); margin-top: 2px; }
+
+    /* Gender bars */
+    .gender-bar-wrap { margin-bottom: 16px; }
+    .gender-bar-hdr { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .gender-bar-track { background: #1e293b; border-radius: 4px; height: 8px; overflow: hidden; }
+    .gender-bar-fill { height: 100%; border-radius: 4px; }
+    .gender-bar-sub { font-size: 10px; color: var(--dim); margin-top: 4px; }
+
+    /* ── POR ANDAR ── */
+    #andar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .andar-card {
+      background: #111827; border-radius: 8px; padding: 14px 16px;
+      border: 1px solid; border-left: 3px solid;
+    }
+    .andar-name { font-size: 11px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+    .andar-track { background: #1e293b; border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 8px; }
+    .andar-fill { height: 100%; transition: width .6s; }
+    .andar-footer { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); }
+    .andar-vazao { margin-top: 6px; font-size: 10px; color: #475569; }
+
+    /* Bar chart */
+    .bar-chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .bar-chart-card h3 { font-size: 12px; letter-spacing: 2px; color: var(--blue); text-transform: uppercase; margin-bottom: 16px; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 120px; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .bar-val { font-size: 8px; font-family: monospace; }
+    .bar-fill { width: 100%; border-radius: 3px 3px 0 0; transition: height .6s; }
+    .bar-name { font-size: 8px; color: #475569; text-align: center; line-height: 1.2; }
+    .bar-baseline { margin-top: 8px; font-size: 10px; color: #374151; }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 40px; color: var(--faint); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div>
+    <div class="subtitle">NBR 13713/2009</div>
+    <h1>ANÁLISE HIDRÁULICA</h1>
+    <div class="desc">Torneiras automáticas — Inspeção de desempenho</div>
+  </div>
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="tabela">Tabela</button>
+    <button class="tab-btn" data-tab="visao">Visão Geral</button>
+    <button class="tab-btn" data-tab="andar">Por Andar</button>
+  </div>
+</div>
+
+<!-- KPI STRIP -->
+<div id="kpi-strip"></div>
+
+<!-- FILTERS -->
+<div id="filters">
+  <span class="lbl">FILTROS:</span>
+  <select id="sel-andar"></select>
+  <select id="sel-genero">
+    <option value="TODOS">TODOS</option>
+    <option value="FEM.">FEM.</option>
+    <option value="MASC.">MASC.</option>
+  </select>
+  <select id="sel-norma">
+    <option value="TODOS">TODAS AS SITUAÇÕES</option>
+    <option value="CONFORME">TOTALMENTE CONFORMES</option>
+    <option value="NAO_CONFORME">COM NÃO-CONFORMIDADES</option>
+    <option value="SEM_DADOS">SEM DADOS</option>
+    <option value="DANIFICADA">DANIFICADAS</option>
+  </select>
+  <span id="count-lbl"></span>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main">
+  <div id="tab-tabela">
+    <div id="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-col="andar">Andar <span class="sort-icon" data-col="andar">⇅</span></th>
+            <th>Gênero</th>
+            <th>Torn.</th>
+            <th class="sortable" data-col="tempo">Tempo (s) <span class="sort-icon" data-col="tempo">⇅</span></th>
+            <th class="sortable" data-col="volume">Vol. (L) <span class="sort-icon" data-col="volume">⇅</span></th>
+            <th class="sortable" data-col="vazao">Vazão (L/s) <span class="sort-icon" data-col="vazao">⇅</span></th>
+            <th>Tempo ✓</th>
+            <th>Volume ✓</th>
+            <th>Vazão ✓</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="table-empty" class="empty" style="display:none">Nenhum registro com os filtros selecionados.</div>
+    </div>
+  </div>
+
+  <div id="tab-visao" style="display:none">
+    <div id="overview-grid">
+      <div class="card" id="card-conformidade">
+        <h3>Conformidade NBR 13713</h3>
+        <div class="donuts" id="donuts"></div>
+        <div class="tag-pills" id="tag-pills"></div>
+      </div>
+      <div class="card" id="card-norma">
+        <h3>Limites da Norma</h3>
+        <div class="norma-row"><span class="norma-key">⏱ Tempo mínimo</span><span class="norma-val">4 s</span></div>
+        <div class="norma-row"><span class="norma-key">⏱ Tempo máximo</span><span class="norma-val">10 s</span></div>
+        <div class="norma-row"><span class="norma-key">💧 Volume máximo</span><span class="norma-val">1,2 L</span></div>
+        <div class="norma-row"><span class="norma-key">🔄 Vazão mínima</span><span class="norma-val">0,04 L/s</span></div>
+        <div style="margin-top:12px;font-size:10px;color:#374151">NBR 13713:2009 — Torneiras automáticas para uso em edifícios</div>
+      </div>
+      <div class="card" id="card-anomalias">
+        <h3 class="red">Anomalias Detectadas</h3>
+        <div class="anomaly-scroll" id="anomaly-list"></div>
+      </div>
+      <div class="card" id="card-genero">
+        <h3>Por Gênero</h3>
+        <div id="genero-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-andar" style="display:none">
+    <div id="andar-grid"></div>
+    <div class="bar-chart-card">
+      <h3>Vazão Média por Andar</h3>
+      <div class="bar-chart" id="bar-chart"></div>
+      <div class="bar-baseline">Linha base NBR: 0,04 L/s mínimo</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const RAW_DATA = [
+  { andar: "TÉRREO", genero: "FEM.", torneira: 1, tempo: 0.86, volumeMl: 40, volumeL: 0.04, vazao: 0.047, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "TÉRREO", genero: "FEM.", torneira: 2, tempo: 26.08, volumeMl: 1465, volumeL: 1.47, vazao: 0.056, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "SIM" },
+  { andar: "TÉRREO", genero: "FEM.", torneira: 3, tempo: 11.41, volumeMl: 895, volumeL: 0.90, vazao: 0.078, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "TÉRREO", genero: "FEM.", torneira: 4, tempo: 7.1, volumeMl: 545, volumeL: 0.55, vazao: 0.077, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "TÉRREO", genero: "MASC.", torneira: 1, tempo: 7.1, volumeMl: 660, volumeL: 0.66, vazao: 0.093, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "TÉRREO", genero: "MASC.", torneira: 2, tempo: 3.43, volumeMl: 250, volumeL: 0.25, vazao: 0.073, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "TÉRREO", genero: "MASC.", torneira: 3, tempo: 5.4, volumeMl: 544, volumeL: 0.54, vazao: 0.101, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "TÉRREO", genero: "MASC.", torneira: 4, tempo: 8.22, volumeMl: 300, volumeL: 0.30, vazao: 0.036, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "NÃO" },
+  { andar: "1° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 2.59, volumeMl: 206, volumeL: 0.21, vazao: 0.080, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "1° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: 2.75, volumeMl: 256, volumeL: 0.26, vazao: 0.093, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "1° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "1° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "1° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 4.79, volumeMl: 452, volumeL: 0.45, vazao: 0.094, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "1° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 1.25, volumeMl: 102, volumeL: 0.10, vazao: 0.082, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "1° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "1° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "2° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 506.059, volumeMl: 47293.7, volumeL: 47.29, vazao: 0.093, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "SIM" },
+  { andar: "2° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: 4.82, volumeMl: 302, volumeL: 0.30, vazao: 0.063, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "2° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: 4.3, volumeMl: 300, volumeL: 0.30, vazao: 0.070, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "2° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "NÃO", danificada: true },
+  { andar: "2° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 12.5, volumeMl: 1068, volumeL: 1.07, vazao: 0.085, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "2° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 6.15, volumeMl: 450, volumeL: 0.45, vazao: 0.073, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "2° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "2° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "3° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 546.6, volumeMl: 39503.54, volumeL: 39.50, vazao: 0.072, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "SIM" },
+  { andar: "3° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: 13.09, volumeMl: 1225, volumeL: 1.23, vazao: 0.094, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "SIM" },
+  { andar: "3° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: 5.22, volumeMl: null, volumeL: 0.00, vazao: 0.000, normaTempo: "SIM", normaVol: "NÃO", normaVazao: "NÃO" },
+  { andar: "3° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: 4.6, volumeMl: 375, volumeL: 0.38, vazao: 0.082, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "3° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 0.28, volumeMl: 90, volumeL: 0.09, vazao: 0.321, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "3° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 9.81, volumeMl: 1002, volumeL: 1.00, vazao: 0.102, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "3° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "3° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "4° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 15.16, volumeMl: 1110, volumeL: 1.11, vazao: 0.073, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "4° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: 7.64, volumeMl: 400, volumeL: 0.40, vazao: 0.052, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "4° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: 5.9, volumeMl: 350, volumeL: 0.35, vazao: 0.059, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "4° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: 10.6, volumeMl: 955, volumeL: 0.96, vazao: 0.090, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "4° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 9.26, volumeMl: 425, volumeL: 0.43, vazao: 0.046, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "4° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 5.59, volumeMl: 449, volumeL: 0.45, vazao: 0.080, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "4° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "4° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "5° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 3.81, volumeMl: 310, volumeL: 0.31, vazao: 0.081, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "5° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: 8.41, volumeMl: 655, volumeL: 0.66, vazao: 0.078, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "5° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: 8.38, volumeMl: 730, volumeL: 0.73, vazao: 0.087, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "5° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: 0.73, volumeMl: 45, volumeL: 0.05, vazao: 0.062, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "5° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 1.1, volumeMl: 35, volumeL: 0.04, vazao: 0.032, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "NÃO" },
+  { andar: "5° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 9.42, volumeMl: 965, volumeL: 0.97, vazao: 0.102, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "5° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "5° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "6° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 5, volumeMl: 330, volumeL: 0.33, vazao: 0.066, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "6° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: null, volumeMl: 0, volumeL: 0.00, vazao: null, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "NÃO", danificada: true },
+  { andar: "6° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: 14.42, volumeMl: 635, volumeL: 0.64, vazao: 0.044, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "6° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: 11.41, volumeMl: 1185, volumeL: 1.19, vazao: 0.104, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "6° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 1.93, volumeMl: 215, volumeL: 0.22, vazao: 0.111, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "6° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 18.12, volumeMl: 1230, volumeL: 1.23, vazao: 0.068, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "SIM" },
+  { andar: "6° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "6° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "7° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 10.4, volumeMl: 860, volumeL: 0.86, vazao: 0.083, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "7° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: 7.88, volumeMl: 295, volumeL: 0.30, vazao: 0.037, normaTempo: "SIM", normaVol: "SIM", normaVazao: "NÃO" },
+  { andar: "7° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: 11.74, volumeMl: 410, volumeL: 0.41, vazao: 0.035, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "NÃO" },
+  { andar: "7° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: 4.59, volumeMl: 265, volumeL: 0.27, vazao: 0.058, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "7° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 14.53, volumeMl: 650, volumeL: 0.65, vazao: 0.045, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "7° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 5.14, volumeMl: 315, volumeL: 0.32, vazao: 0.061, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "7° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "7° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "8° PAVIMENTO", genero: "FEM.", torneira: 1, tempo: 5.59, volumeMl: 420, volumeL: 0.42, vazao: 0.075, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "8° PAVIMENTO", genero: "FEM.", torneira: 2, tempo: 4.2, volumeMl: 255, volumeL: 0.26, vazao: 0.061, normaTempo: "SIM", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "8° PAVIMENTO", genero: "FEM.", torneira: 3, tempo: 19.25, volumeMl: 1440, volumeL: 1.44, vazao: 0.075, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "SIM" },
+  { andar: "8° PAVIMENTO", genero: "FEM.", torneira: 4, tempo: 3.16, volumeMl: 45, volumeL: 0.05, vazao: 0.014, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "NÃO" },
+  { andar: "8° PAVIMENTO", genero: "MASC.", torneira: 1, tempo: 3.82, volumeMl: 220, volumeL: 0.22, vazao: 0.058, normaTempo: "NÃO", normaVol: "SIM", normaVazao: "SIM" },
+  { andar: "8° PAVIMENTO", genero: "MASC.", torneira: 2, tempo: 22.94, volumeMl: 1660, volumeL: 1.66, vazao: 0.072, normaTempo: "NÃO", normaVol: "NÃO", normaVazao: "SIM" },
+  { andar: "8° PAVIMENTO", genero: "MASC.", torneira: 3, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+  { andar: "8° PAVIMENTO", genero: "MASC.", torneira: 4, tempo: null, volumeMl: null, volumeL: null, vazao: null, normaTempo: null, normaVol: null, normaVazao: null },
+];
+
+const ANDARES_ORDERED = ["TÉRREO","1° PAVIMENTO","2° PAVIMENTO","3° PAVIMENTO","4° PAVIMENTO","5° PAVIMENTO","6° PAVIMENTO","7° PAVIMENTO","8° PAVIMENTO"];
+
+// ── STATE ──
+let filterAndar = "TODOS";
+let filterGenero = "TODOS";
+let filterNorma = "TODOS";
+let sortBy = "andar";
+let sortDir = "asc";
+let activeTab = "tabela";
+let selectedRow = null;
+
+// ── DERIVED DATA ──
+const validData = RAW_DATA.filter(d => d.tempo != null && !d.danificada);
+
+function calcStats() {
+  const total = RAW_DATA.length;
+  const semDados = RAW_DATA.filter(d => d.tempo == null && !d.danificada).length;
+  const danificadas = RAW_DATA.filter(d => d.danificada).length;
+  const medidas = validData;
+  const confTempoCount = medidas.filter(d => d.normaTempo === "SIM").length;
+  const confVolCount   = medidas.filter(d => d.normaVol === "SIM").length;
+  const confVazaoCount = medidas.filter(d => d.normaVazao === "SIM").length;
+  const allConf = medidas.filter(d => d.normaTempo === "SIM" && d.normaVol === "SIM" && d.normaVazao === "SIM").length;
+  const vazoes = medidas.map(d => d.vazao).filter(Boolean);
+  const avgVazao = vazoes.reduce((a,b) => a+b, 0) / vazoes.length;
+  const maxVazao = Math.max(...vazoes);
+  const minVazao = Math.min(...vazoes);
+  return { total, semDados, danificadas, medidas: medidas.length, confTempoCount, confVolCount, confVazaoCount, allConf, avgVazao, maxVazao, minVazao };
+}
+
+function calcAndarStats() {
+  return ANDARES_ORDERED.map(a => {
+    const rows = validData.filter(d => d.andar === a);
+    const sim = rows.filter(d => d.normaTempo === "SIM" && d.normaVol === "SIM" && d.normaVazao === "SIM").length;
+    const avgVazao = rows.length ? rows.reduce((s,d) => s + (d.vazao||0), 0) / rows.length : 0;
+    return { andar: a.replace(" PAVIMENTO","° P.").replace("TÉRREO","TÉR."), total: rows.length, sim, avgVazao };
+  });
+}
+
+function getFiltered() {
+  let d = RAW_DATA.filter(r => {
+    if (filterAndar !== "TODOS" && r.andar !== filterAndar) return false;
+    if (filterGenero !== "TODOS" && r.genero !== filterGenero) return false;
+    if (filterNorma === "CONFORME" && (r.normaTempo !== "SIM" || r.normaVol !== "SIM" || r.normaVazao !== "SIM")) return false;
+    if (filterNorma === "NAO_CONFORME") {
+      const nonConf = r.normaTempo === "NÃO" || r.normaVol === "NÃO" || r.normaVazao === "NÃO";
+      if (!nonConf) return false;
+    }
+    if (filterNorma === "SEM_DADOS" && r.tempo != null) return false;
+    if (filterNorma === "DANIFICADA" && !r.danificada) return false;
+    return true;
+  });
+  d = [...d].sort((a, b) => {
+    const mult = sortDir === "asc" ? 1 : -1;
+    if (sortBy === "andar")  return mult * (ANDARES_ORDERED.indexOf(a.andar) - ANDARES_ORDERED.indexOf(b.andar));
+    if (sortBy === "vazao")  return mult * ((a.vazao  ?? -1) - (b.vazao  ?? -1));
+    if (sortBy === "volume") return mult * ((a.volumeL ?? -1) - (b.volumeL ?? -1));
+    if (sortBy === "tempo")  return mult * ((a.tempo  ?? -1) - (b.tempo  ?? -1));
+    return 0;
+  });
+  return d;
+}
+
+// ── HELPERS ──
+function badge(val, variant) {
+  const cls = variant === "SIM" ? "badge-sim" : variant === "NÃO" ? "badge-nao" : variant === "danif" ? "badge-danif" : "badge-null";
+  return `<span class="badge ${cls}">${val ?? "—"}</span>`;
+}
+
+function minibar(value, max, color) {
+  if (value == null) return `<span style="color:#374151">—</span>`;
+  const pct = Math.min((value / max) * 100, 100);
+  return `<div class="minibar-wrap">
+    <div class="minibar-track"><div class="minibar-fill" style="width:${pct}%;background:${color}"></div></div>
+    <span class="minibar-val">${value.toFixed(3)}</span>
+  </div>`;
+}
+
+function donutSVG(sim, total, label) {
+  const pct = total ? Math.round((sim/total)*100) : 0;
+  const r = 22, cx = 28, cy = 28, stroke = 5;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct/100)*circ;
+  const color = pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444";
+  return `<div class="donut-item">
+    <svg width="56" height="56">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="${stroke}"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+        stroke-dasharray="${dash} ${circ}" stroke-linecap="round"
+        transform="rotate(-90 ${cx} ${cy})"/>
+      <text x="${cx}" y="${cy+5}" text-anchor="middle" fill="${color}" font-size="11" font-weight="bold" font-family="'JetBrains Mono',monospace">${pct}%</text>
+    </svg>
+    <span class="donut-lbl">${label}</span>
+  </div>`;
+}
+
+// ── POPULATE ANDAR SELECT ──
+function initAndarSelect() {
+  const sel = document.getElementById("sel-andar");
+  ["TODOS", ...ANDARES_ORDERED].forEach(a => {
+    const opt = document.createElement("option");
+    opt.value = a; opt.textContent = a;
+    sel.appendChild(opt);
+  });
+}
+
+// ── RENDER KPIs ──
+function renderKPIs() {
+  const s = calcStats();
+  const kpis = [
+    { label: "Total",      value: s.total,                        color: "#60a5fa" },
+    { label: "Medidas",    value: s.medidas,                      color: "#34d399" },
+    { label: "Sem Dados",  value: s.semDados,                     color: "#94a3b8" },
+    { label: "Danificadas",value: s.danificadas,                  color: "#fbbf24" },
+    { label: "Conf. Total",value: s.allConf,                      color: "#10b981" },
+    { label: "Vazão Média",value: s.avgVazao.toFixed(4)+" L/s",   color: "#a78bfa" },
+    { label: "Vazão Máx.", value: s.maxVazao.toFixed(4)+" L/s",   color: "#f87171" },
+  ];
+  document.getElementById("kpi-strip").innerHTML = kpis.map(k =>
+    `<div class="kpi"><div class="kpi-val" style="color:${k.color}">${k.value}</div><div class="kpi-lbl">${k.label}</div></div>`
+  ).join("");
+}
+
+// ── RENDER TABLE ──
+function renderTable() {
+  const filtered = getFiltered();
+  const tbody = document.getElementById("tbody");
+  const empty = document.getElementById("table-empty");
+  document.getElementById("count-lbl").textContent = `${filtered.length} registros`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = "";
+    empty.style.display = "";
+    return;
+  }
+  empty.style.display = "none";
+
+  tbody.innerHTML = filtered.map((r, i) => {
+    const allOk  = r.normaTempo === "SIM" && r.normaVol === "SIM" && r.normaVazao === "SIM";
+    const semD   = r.tempo == null && !r.danificada;
+    const statusColor = r.danificada ? "#fbbf24" : semD ? "#64748b" : allOk ? "#10b981" : "#ef4444";
+    const statusLabel = r.danificada ? "DANIF." : semD ? "S/ DADO" : allOk ? "OK" : "NOK";
+    const tempoColor  = r.tempo != null ? (r.tempo < 4 || r.tempo > 10 ? "#fbbf24" : "#e2e8f0") : "#374151";
+    const volColor    = r.volumeL != null ? (r.volumeL > 1.2 ? "#f87171" : "#e2e8f0") : "#374151";
+    const genColor    = r.genero === "FEM." ? "#f472b6" : "#60a5fa";
+    const vazaoColor  = r.vazao != null ? (r.vazao < 0.04 ? "#ef4444" : "#0ea5e9") : "#374151";
+    const isSelected  = selectedRow === i;
+
+    return `<tr data-idx="${i}" class="${isSelected ? 'selected' : ''}">
+      <td style="color:#e2e8f0;font-weight:700;font-size:11px">${r.andar}</td>
+      <td><span style="font-size:10px;color:${genColor};font-weight:700">${r.genero}</span></td>
+      <td style="color:#94a3b8;text-align:center">${r.torneira}</td>
+      <td><span style="color:${tempoColor}">${r.tempo != null ? r.tempo.toFixed(2) : "—"}</span></td>
+      <td><span style="color:${volColor}">${r.volumeL != null ? r.volumeL.toFixed(3) : "—"}</span></td>
+      <td>${minibar(r.vazao, 0.35, vazaoColor)}</td>
+      <td>${badge(r.normaTempo, r.normaTempo)}</td>
+      <td>${badge(r.normaVol,   r.normaVol)}</td>
+      <td>${badge(r.normaVazao, r.normaVazao)}</td>
+      <td><span class="status-pill" style="background:${statusColor}22;color:${statusColor};border-color:${statusColor}55">${statusLabel}</span></td>
+    </tr>`;
+  }).join("");
+
+  // Row click
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const idx = parseInt(tr.dataset.idx);
+      selectedRow = selectedRow === idx ? null : idx;
+      renderTable();
+    });
+  });
+
+  // Update sort icons
+  document.querySelectorAll(".sort-icon").forEach(el => {
+    const col = el.dataset.col;
+    el.textContent = sortBy === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+    el.style.color = sortBy === col ? "#0ea5e9" : "#d1d5db";
+  });
+}
+
+// ── RENDER OVERVIEW ──
+function renderOverview() {
+  const s = calcStats();
+
+  // Donuts
+  document.getElementById("donuts").innerHTML =
+    donutSVG(s.confTempoCount, s.medidas, "Tempo") +
+    donutSVG(s.confVolCount,   s.medidas, "Volume") +
+    donutSVG(s.confVazaoCount, s.medidas, "Vazão") +
+    donutSVG(s.allConf,        s.medidas, "Total");
+
+  // Tag pills
+  const pills = [
+    { label: `${s.allConf} conformes`,          color: "#10b981" },
+    { label: `${s.medidas - s.allConf} não-conf.`, color: "#ef4444" },
+    { label: `${s.semDados} sem dados`,          color: "#64748b" },
+    { label: `${s.danificadas} danif.`,          color: "#fbbf24" },
+  ];
+  document.getElementById("tag-pills").innerHTML = pills.map(p =>
+    `<span class="tag-pill" style="color:${p.color};background:${p.color}15;border-color:${p.color}30">${p.label}</span>`
+  ).join("");
+
+  // Anomalies
+  const anomalies = validData.filter(d => d.tempo > 100 || d.volumeL > 10 || d.vazao > 0.15);
+  const anomalyList = document.getElementById("anomaly-list");
+  if (anomalies.length === 0) {
+    anomalyList.innerHTML = `<div style="color:#374151;font-size:12px">Nenhuma anomalia crítica encontrada.</div>`;
+  } else {
+    anomalyList.innerHTML = anomalies.map(d => `
+      <div class="anomaly-item">
+        <div class="anomaly-title">${d.andar} — ${d.genero} — Torn. ${d.torneira}</div>
+        <div class="anomaly-detail">
+          ${d.tempo > 100 ? `⚠ Tempo: ${d.tempo.toFixed(1)}s (muito acima do limite)` : ""}
+          ${d.volumeL > 10 ? ` ⚠ Vol: ${d.volumeL.toFixed(2)}L` : ""}
+          ${d.vazao > 0.15 ? ` ⚠ Vazão: ${d.vazao.toFixed(3)}L/s` : ""}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // Gender bars
+  const genderBars = document.getElementById("genero-bars");
+  genderBars.innerHTML = ["FEM.", "MASC."].map(g => {
+    const gRows = validData.filter(d => d.genero === g);
+    const gSim  = gRows.filter(d => d.normaTempo === "SIM" && d.normaVol === "SIM" && d.normaVazao === "SIM").length;
+    const gVazao = gRows.reduce((s,d) => s + (d.vazao||0), 0) / gRows.length;
+    const color = g === "FEM." ? "#f472b6" : "#60a5fa";
+    const pct = gRows.length ? (gSim/gRows.length)*100 : 0;
+    return `<div class="gender-bar-wrap">
+      <div class="gender-bar-hdr">
+        <span style="color:${color};font-weight:700;font-size:13px">${g === "FEM." ? "♀ Feminino" : "♂ Masculino"}</span>
+        <span style="font-size:11px;color:#94a3b8">${gSim}/${gRows.length} conformes</span>
+      </div>
+      <div class="gender-bar-track"><div class="gender-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="gender-bar-sub">Vazão média: ${gVazao.toFixed(4)} L/s</div>
+    </div>`;
+  }).join("");
+}
+
+// ── RENDER POR ANDAR ──
+function renderAndar() {
+  const andarStats = calcAndarStats();
+
+  document.getElementById("andar-grid").innerHTML = andarStats.map(a => {
+    const pct = a.total ? Math.round((a.sim/a.total)*100) : 0;
+    const color = pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444";
+    return `<div class="andar-card" style="border-color:${color}40;border-left-color:${color}">
+      <div class="andar-name">${a.andar}</div>
+      <div class="andar-track"><div class="andar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="andar-footer">
+        <span style="color:${color}">${pct}% conf.</span>
+        <span>${a.sim}/${a.total} torn.</span>
+      </div>
+      <div class="andar-vazao">Vazão méd: <span style="color:#a78bfa">${a.avgVazao.toFixed(4)} L/s</span></div>
+    </div>`;
+  }).join("");
+
+  const barChart = document.getElementById("bar-chart");
+  barChart.innerHTML = andarStats.map(a => {
+    const h = a.avgVazao > 0 ? Math.max(8, (a.avgVazao/0.15)*110) : 0;
+    const color = a.avgVazao < 0.04 ? "#ef4444" : "#0ea5e9";
+    return `<div class="bar-col">
+      <span class="bar-val" style="color:${color}">${a.avgVazao.toFixed(3)}</span>
+      <div class="bar-fill" style="height:${h}px;background:linear-gradient(to top,${color},${color}88)"></div>
+      <span class="bar-name">${a.andar}</span>
+    </div>`;
+  }).join("");
+}
+
+// ── TAB SWITCHING ──
+function showTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.getElementById("tab-tabela").style.display = tab === "tabela" ? "" : "none";
+  document.getElementById("tab-visao").style.display  = tab === "visao"  ? "" : "none";
+  document.getElementById("tab-andar").style.display  = tab === "andar"  ? "" : "none";
+  if (tab === "visao")  renderOverview();
+  if (tab === "andar")  renderAndar();
+}
+
+// ── INIT ──
+initAndarSelect();
+renderKPIs();
+renderTable();
+
+// Tab buttons
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => showTab(btn.dataset.tab));
+});
+
+// Filters
+document.getElementById("sel-andar").addEventListener("change", e => { filterAndar = e.target.value; selectedRow = null; renderTable(); });
+document.getElementById("sel-genero").addEventListener("change", e => { filterGenero = e.target.value; selectedRow = null; renderTable(); });
+document.getElementById("sel-norma").addEventListener("change", e => { filterNorma = e.target.value; selectedRow = null; renderTable(); });
+
+// Sortable headers
+document.querySelectorAll("th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if (sortBy === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else { sortBy = col; sortDir = "asc"; }
+    selectedRow = null;
+    renderTable();
+  });
+});
+</script>
+</body>
+</html>
